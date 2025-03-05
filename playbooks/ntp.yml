@@ -1,0 +1,51 @@
+---
+
+- name: Configure NTP on servers
+  hosts: gluster
+  become: true
+  vars:
+    ntp_servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
+      - 2.pool.ntp.org
+      - 3.pool.ntp.org
+    ntp_package:
+      Debian: ntp
+      RedHat: chrony
+    ntp_service:
+      Debian: ntp
+      RedHat: chronyd
+    ntp_config_file:
+      Debian: /etc/ntp.conf
+      RedHat: /etc/chrony.conf
+    ntp_template:
+      Debian: srv/debian/ntp.conf.j2
+      RedHat: srv/gentos/chrony.conf.j2
+
+  tasks:
+    - name: Install NTP package
+      ansible.builtin.package:
+        name: "{{ ntp_package[ansible_os_family] }}"
+        state: present
+
+    - name: Configure NTP servers
+      ansible.builtin.template:
+        src: "{{ ntp_template[ansible_os_family] }}"
+        dest: "{{ ntp_config_file[ansible_os_family] }}"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart ntp service
+
+    - name: Ensure NTP service is enabled and running
+      ansible.builtin.service:
+        name: "{{ ntp_service[ansible_os_family] }}"
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart ntp service
+      ansible.builtin.service:
+        name: "{{ ntp_service[ansible_os_family] }}"
+        state: restarted
+
